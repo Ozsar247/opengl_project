@@ -58,3 +58,17 @@ target_link_libraries(opengl_project PRIVATE jsoncpp_lib)
 if(UNIX)
     target_link_libraries(${PROJECT_NAME} PRIVATE dl m)
 endif()
+
+##### AUTO COPY ASSETS FOLDER #####
+# set(ASSETS_SRC "${CMAKE_SOURCE_DIR}/assets")
+# set(ASSETS_DST "${CMAKE_BINARY_DIR}/assets")  # Copies to the build folder
+
+# # Custom command to copy assets
+# add_custom_command(
+#     OUTPUT "${ASSETS_DST}"
+#     COMMAND ${CMAKE_COMMAND} -E copy_directory "${ASSETS_SRC}" "${ASSETS_DST}"
+#     COMMENT "Copying assets folder to build directory"
+# )
+
+# # Create a target that depends on the copy
+# add_custom_target(copy_assets ALL DEPENDS "${ASSETS_DST}")

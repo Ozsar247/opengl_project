@@ -1,124 +1,98 @@
 #pragma once
 
-#include <glad/glad.h>
-#include <vector>
-#include <cstddef> // for size_t
+#include <glm/glm.hpp>
 
-struct VertexAttrib {
-    GLuint index;
-    GLint size;
-    GLenum type;
-    GLboolean normalized;
+#include "texture.hpp"
+#include "bufferRenderer.hpp"
+
+#include <stddef.h>
+
+
+#define MAX_BONE_INFLUENCE 4
+
+
+struct Vertex {
+    // position
+    glm::vec3 Position;
+    // normal
+    glm::vec3 Normal;
+    // texCoords
+    glm::vec2 TexCoords;
+    // tangent
+    glm::vec3 Tangent;
+    // bitangent
+    glm::vec3 Bitangent;
+	//bone indexes which will influence this vertex
+	int m_BoneIDs[MAX_BONE_INFLUENCE];
+	//weights from each bone
+	float m_Weights[MAX_BONE_INFLUENCE];
+};
+
+
+struct Tex {
+    unsigned int id;
+    std::string type;
+    std::string path;
 };
 
 class Mesh {
 public:
-    Mesh() {
-        glGenVertexArrays(1, &vao);
-        glGenBuffers(1, &vbo);
-        glGenBuffers(1, &ebo);
-    }
+    std::vector<Vertex> vertices;
+    std::vector<unsigned int> indices;
+    std::vector<Tex> textures;
 
-    void cleanup() const {
-        glDeleteVertexArrays(1, &vao);
-        glDeleteBuffers(1, &vbo);
-        glDeleteBuffers(1, &ebo);
-    }
-    void bind() const {
-        glBindVertexArray(vao);
-    }
+    Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, std::vector<Tex> textures)
+        : vertices(vertices), indices(indices), textures(textures) {
+        setupMesh();
+    };
+    void Draw(Shader &shader) {
+        unsigned int diffuseNr = 1;
+        unsigned int specularNr = 1;
+        for (unsigned int i = 0; i < textures.size(); i++) {
+            glActiveTexture(GL_TEXTURE0 + i);
 
-    void unbind() const {
-        glBindVertexArray(0);
-    }
+            std::string number;
+            std::string name = textures[i].type;
+            if (name == "texture_diffuse") {
+                number = std::to_string(diffuseNr++);
+            } else {
+                number = std::to_string(specularNr++);
+            }
 
-    // Set vertex data (from raw array)
-    template<typename T>
-    void setVertices(const T* data, size_t count, GLenum usage = GL_STATIC_DRAW) {
-        vertexCount = count;
-        bind();
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, count * sizeof(T), data, usage);
-    }
-
-    // Set vertex data (from vector)
-    template<typename T>
-    void setVertices(const std::vector<T>& data, GLenum usage = GL_STATIC_DRAW) {
-        setVertices(data.data(), data.size(), usage);
-    }
-
-    // Set indices for EBO (optional)
-    template<typename T>
-    void setIndices(const T* data, size_t count, GLenum usage = GL_STATIC_DRAW) {
-        indexCount = count;
-        hasEBO = true;
-        bind();
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(T), data, usage);
-    }
-
-    template<typename T>
-    void setIndices(const std::vector<T>& data, GLenum usage = GL_STATIC_DRAW) {
-        setIndices(data.data(), data.size(), usage);
-    }
-
-    // Add vertex attribute (auto stride calculation)
-    void addAttrib(GLuint index, GLint size, GLenum type, GLboolean normalized = GL_FALSE) {
-        attribs.push_back({index, size, type, normalized});
-        totalStride += size * typeSize(type);
-    }
-
-    // Link VAO: enables attributes and calculates byte offsets
-    void link() {
-        bind();
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        size_t offset = 0;
-        for (auto& a : attribs) {
-            glEnableVertexAttribArray(a.index);
-            glVertexAttribPointer(
-                a.index,
-                a.size,
-                a.type,
-                a.normalized,
-                totalStride,
-                (void*)offset
-            );
-            offset += a.size * typeSize(a.type);
+            shader.setInt(("material." + name + number).c_str(), i);
+            glBindTexture(GL_TEXTURE_2D, textures[i].id);
         }
-        // EBO is already bound if used
-        unbind();
-    }
+        glActiveTexture(GL_TEXTURE0);
 
-    // Draw mesh
-    void draw() const {
-        bind();
-        if (hasEBO) {
-            glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
-        } else {
-            glDrawArrays(GL_TRIANGLES, 0, vertexCount);
-        }
-        unbind();
-    }
-
+        buf.draw();
+    };
 private:
-    GLuint vao = 0, vbo = 0, ebo = 0;
-    std::vector<VertexAttrib> attribs;
-    size_t totalStride = 0;
-    size_t vertexCount = 0;
-    size_t indexCount = 0;
-    bool hasEBO = false;
+    BufferRenderer buf;
 
-    size_t typeSize(GLenum type) const {
-        switch (type) {
-            case GL_FLOAT: return sizeof(float);
-            case GL_INT: return sizeof(int);
-            case GL_UNSIGNED_INT: return sizeof(unsigned int);
-            case GL_DOUBLE: return sizeof(double);
-            case GL_BYTE: return sizeof(char);
-            case GL_UNSIGNED_BYTE: return sizeof(unsigned char);
-            case GL_SHORT: return sizeof(short);
-            case GL_UNSIGNED_SHORT: return sizeof(unsigned short);
-            default: return 0;
-        }
+    void setupMesh() {
+        // Upload vertex + index buffers
+        buf.setVertices(vertices);
+        buf.setIndices(indices);
+
+        // Struct stride
+        buf.setStride(sizeof(Vertex));
+
+        // ---- Vertex Attributes ----
+        buf.addAttribOffset(0, 3, GL_FLOAT,  offsetof(Vertex, Position));     // vec3
+        buf.addAttribOffset(1, 3, GL_FLOAT,  offsetof(Vertex, Normal));       // vec3
+        buf.addAttribOffset(2, 2, GL_FLOAT,  offsetof(Vertex, TexCoords));    // vec2
+        buf.addAttribOffset(3, 3, GL_FLOAT,  offsetof(Vertex, Tangent));      // vec3
+        buf.addAttribOffset(4, 3, GL_FLOAT,  offsetof(Vertex, Bitangent));    // vec3
+
+        // bone IDs → int[4] → use GL_INT
+        buf.addAttribOffset(5, 4, GL_INT,    offsetof(Vertex, m_BoneIDs));    // ivec4
+
+        // weights → float[4]
+        buf.addAttribOffset(6, 4, GL_FLOAT,  offsetof(Vertex, m_Weights));    // vec4
+
+        // Build VAO
+        buf.link();
     }
+
 };
+
