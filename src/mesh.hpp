@@ -19,12 +19,11 @@ public:
         glGenBuffers(1, &ebo);
     }
 
-    ~Mesh() {
+    void cleanup() const {
         glDeleteVertexArrays(1, &vao);
         glDeleteBuffers(1, &vbo);
         glDeleteBuffers(1, &ebo);
     }
-
     void bind() const {
         glBindVertexArray(vao);
     }

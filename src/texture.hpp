@@ -11,27 +11,22 @@ public:
 
     Texture(const char* path, bool flip = true);
 
-    void bind(unsigned int slot = -1, char* name = (char*)"texture") {
+    void bind(unsigned int slot, const std::string& uniformName) const {
+        glActiveTexture(GL_TEXTURE0 + slot);
+        glBindTexture(GL_TEXTURE_2D, texture);
 
-        if (slot == -1) {
-            glActiveTexture(GL_TEXTURE0 + textures);
-            glBindTexture(GL_TEXTURE_2D, texture);
-        } else {
-            glActiveTexture(GL_TEXTURE0 + slot);
-            glBindTexture(GL_TEXTURE_2D, texture);
-        }
-
-        if (name == (char*)"texture") {
-            Shader::getCurrentShader()->setInt((char*)"texture" + std::to_string(slot), slot);
-        } else {
-            Shader::getCurrentShader()->setInt((char*)name, slot);
-        }
-        textures += 1;
+        // Ensure shader is active before setting
+        Shader::getCurrentShader()->setInt(uniformName.c_str(), slot);
     }
+
+    void bind(unsigned int slot = 0) const {
+        glActiveTexture(GL_TEXTURE0 + slot);
+        glBindTexture(GL_TEXTURE_2D, texture);
+    }
+
 
     void cleanup() {
         glDeleteTextures(1, &texture);
-        textures -= 1;
     }
 private:
     unsigned int textures = 0;
