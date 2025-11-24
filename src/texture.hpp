@@ -9,6 +9,7 @@ class Texture {
 public:
     unsigned int texture = 0;
 
+    Texture() = default;
     Texture(const char* path, bool flip = true);
 
     void bind(unsigned int slot, const std::string& uniformName) const {

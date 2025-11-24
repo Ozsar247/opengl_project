@@ -4,14 +4,12 @@
 #include "shader.hpp"
 #include "texture.hpp"
 
-#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include "bufferRenderer.hpp"
-#include "./IO/camera.hpp"
-#include "./IO/input.hpp"
+#include "camera.hpp"
 
 #include "model.hpp"
 #include "lights.hpp"
@@ -20,11 +18,7 @@
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_impl_opengl3.h"
 
-#include "./objects/cube.hpp"
-#include "object.hpp"
-
-#include "scene.hpp"
-#include <memory> 
+#include "./Objects/cube.hpp"
 
 #include "renderer.hpp"
 
@@ -33,7 +27,7 @@
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
-void processInput(GLFWwindow *window, Input* input);
+void processInput(GLFWwindow *window);
 
 // settings
 const unsigned int SCR_WIDTH = 800;
@@ -58,9 +52,7 @@ int main()
     Renderer Render(SCR_WIDTH, SCR_HEIGHT, "OpenGL Tutorial");
     GLFWwindow* window = Render.GetWindow();
 
-    Render.SetInputProcessor([&Render](GLFWwindow* window) {
-        processInput(window, Render.GetInput());
-    });
+    Render.SetInputProcessor(processInput);
     Render.SetMouseInputProcessor(mouse_callback);
     Render.SetScrollInputProcessor(scroll_callback);
 
@@ -71,6 +63,52 @@ int main()
 
     Texture tex("assets/container2.png");
     Texture spec("assets/container2_specular.png");
+
+    // Each face has 4 vertices (positions + tex coords)
+    float vertices[] = {
+        // positions          // normals           // texture coords
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
+         0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
+
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
+
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+
+        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+        0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
+        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+        0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
+        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
+
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
+    };
 
     glm::vec3 cubePositions[] = {
         glm::vec3( 0.0f,  0.0f,  0.0f),
@@ -92,28 +130,36 @@ int main()
         glm::vec3( 0.0f,  0.0f, -3.0f)
     };
 
-    Scene scene;
-    
-    for (int i = 0; i < 10; i++) {
-        auto cube = scene.NewInstance<Cube>();
-        cube->position = cubePositions[i];
-        cube->scale = glm::vec3(1.0f);
-        cube->diffuse = tex;
-        cube->specular = spec;
 
-        scene.addObject("cube" + std::to_string(i), std::move(cube));
-    }
+    BufferRenderer cube;
+    cube.setVertices(vertices, sizeof(vertices)/sizeof(float));
+    //cube.setIndices(indices, sizeof(indices)/sizeof(unsigned int));
+
+    cube.addAttrib(0, 3, GL_FLOAT); // position
+    cube.addAttrib(1, 3, GL_FLOAT); // normals
+    cube.addAttrib(2, 2, GL_FLOAT); // texcoords
+    cube.link();
+
+    BufferRenderer light;
+    light.setVertices(vertices, sizeof(vertices)/sizeof(float));
+    //light.setIndices(indices, sizeof(indices)/sizeof(unsigned int));
+
+    light.addAttrib(0, 3, GL_FLOAT); // position
+    light.addAttrib(1, 3, GL_FLOAT); // normals
+    light.addAttrib(2, 2, GL_FLOAT); // texcoords
+    light.link();
+
+    Model mod("assets/backpack/backpack.obj");
     
     // render loop
     // -----------
     while (Render.RenderLoop()) {
         dt = Render.GetDeltaTime();
 
-
-        scene.view = camera.GetViewMatrix();
-        scene.projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-
-        shader.use();
+        shader.use();      
+        //tex.bind(0, "material.diffuse");
+        //spec.bind(1, "material.specular");
+        shader.setFloat("material.shininess", 32.0f);
         // directional light
         Lights::dirLight(shader, glm::vec3(-0.2f, -1.0f, -0.3f), glm::vec3(1.0f, 0.95f, 0.8f), 0.3f);
         for (unsigned int i = 0; i < 4; i++) {
@@ -122,12 +168,39 @@ int main()
         // spotLight
         Lights::spotLight(shader, camera.Position, camera.Front, glm::vec3(1.0f,1.0f,1.0f), 0.8f, 20.0f, 12.5f, 15.0f); 
 
-        if (Object* obj = scene.getObject("cube1")) {
-            obj->rotation = glm::vec3(0.0f, glfwGetTime() * 20, 0.0f);
-        }
-        ImGui::ShowDemoWindow();
+        // create transformations
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        glm::mat4 view = camera.GetViewMatrix();
+        shader.setMat4("projection", projection);
+        shader.setMat4("view", view);
 
-        scene.render();
+        glm::mat4 model = glm::mat4(1.0f);
+        shader.setMat4("model", model);
+
+
+        // In render loop:
+        for (unsigned int i = 0; i < 10; i++)
+        {
+            // calculate the model matrix for each object and pass it to shader before drawing
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::translate(model, cubePositions[i]);
+            float angle = 20.0f * i;
+            model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
+            shader.setMat4("model", model);
+
+            mod.Draw(shader);
+        }
+
+        lightCubeShader.use();
+        lightCubeShader.setMat4("projection", projection);
+        lightCubeShader.setMat4("view", view);
+        for (unsigned int i = 0; i < 4; i++) {
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, pointLightPositions[i]);
+            model = glm::scale(model, glm::vec3(0.2f)); // Make it a smaller cube
+            lightCubeShader.setMat4("model", model);
+            light.draw();
+        }
 
         Render.RenderLast();
     }
@@ -138,12 +211,11 @@ int main()
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
-void processInput(GLFWwindow *window, Input* input)
+void processInput(GLFWwindow *window)
 {
-    if (ImGui::GetIO().WantCaptureKeyboard) return;
-    if (input->isKeyUp(GLFW_KEY_ESCAPE)) {
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
         //glfwSetWindowShouldClose(window, true);
-        if (!cursorEnabled) {
+        if (cursorEnabled) {
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);  
         } else {
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);  
@@ -176,8 +248,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 {
-    ImGui_ImplGlfw_CursorPosCallback(window, xposIn, yposIn);
-    if (ImGui::GetIO().WantCaptureMouse) return;
     float xpos = static_cast<float>(xposIn);
     float ypos = static_cast<float>(yposIn);
 
@@ -203,7 +273,6 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 // ----------------------------------------------------------------------
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-    ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
     if (cursorEnabled) {
         camera.ProcessMouseScroll(static_cast<float>(yoffset));
     }
