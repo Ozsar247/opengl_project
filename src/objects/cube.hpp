@@ -13,7 +13,9 @@
 
 class Cube : public Object {
 public:
-    BufferRenderer cube;
+    Texture diffuse;
+    Texture specular;
+
     Cube() {
         cube.setVertices(vertices, sizeof(vertices)/sizeof(float));
 
@@ -86,4 +88,6 @@ public:
         shader->setMat4("model", model);
         cube.draw();
     }
+private:
+    BufferRenderer cube;
 };

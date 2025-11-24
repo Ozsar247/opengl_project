@@ -36,9 +36,9 @@ public:
             obj->render(view, projection, Shader::getCurrentShader());
         }
     }
-    template <typename T>
-    static std::unique_ptr<T> NewInstance() {
-        return std::make_unique<T>();
+    template <typename T, typename... Args>
+    static std::unique_ptr<T> NewInstance(Args&&... args) {
+        return std::make_unique<T>(std::forward<Args>(args)...);
     }
 
     Object* getObject(const std::string& name) {

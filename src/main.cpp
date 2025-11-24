@@ -13,7 +13,7 @@
 #include "./IO/camera.hpp"
 #include "./IO/input.hpp"
 
-#include "model.hpp"
+
 #include "lights.hpp"
 
 #include "imgui/imgui.h"
@@ -21,6 +21,7 @@
 #include "imgui/imgui_impl_opengl3.h"
 
 #include "./objects/cube.hpp"
+#include "./objects/model.hpp"
 #include "object.hpp"
 
 #include "scene.hpp"
@@ -30,7 +31,6 @@
 
 #include <iostream>
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window, Input* input);
@@ -66,11 +66,13 @@ int main()
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);  
 
-    Shader shader("assets/shader.vs", "assets/shader.fs");
-    Shader lightCubeShader("assets/light_cube.vs", "assets/light_cube.fs");
+    Shader shader("assets/shaders/shader.vs", "assets/shaders/shader.fs");
+    Shader screenShader("assets/shaders/screen_shader.vs", "assets/shaders/screen_shader.fs");
+    Shader lightCubeShader("assets/shaders/light_cube.vs", "assets/shaders/light_cube.fs");
 
-    Texture tex("assets/container2.png");
-    Texture spec("assets/container2_specular.png");
+    Texture tex("assets/textures/container2.png");
+    Texture spec("assets/textures/container2_specular.png");
+    Texture tex2("assets/textures/uv.png");
 
     glm::vec3 cubePositions[] = {
         glm::vec3( 0.0f,  0.0f,  0.0f),
@@ -92,6 +94,27 @@ int main()
         glm::vec3( 0.0f,  0.0f, -3.0f)
     };
 
+    Render.InitFrameBuffer(Render.SCR_W, Render.SCR_H, &screenShader);
+
+    float quadVertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
+        // positions   // texCoords
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        -1.0f, -1.0f,  0.0f, 0.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
+
+        -1.0f,  1.0f,  0.0f, 1.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
+         1.0f,  1.0f,  1.0f, 1.0f
+    };
+
+    BufferRenderer br;
+    br.setVertices(quadVertices, sizeof(quadVertices)/sizeof(float));
+
+    br.addAttrib(0, 2, GL_FLOAT);
+    br.addAttrib(1, 2, GL_FLOAT);
+
+    br.link();
+
     Scene scene;
     
     for (int i = 0; i < 10; i++) {
@@ -103,6 +126,18 @@ int main()
 
         scene.addObject("cube" + std::to_string(i), std::move(cube));
     }
+
+    auto cube = scene.NewInstance<Cube>();
+    cube->position = glm::vec3(-1.0f,-1.0f,-1.0f);
+    cube->scale = glm::vec3(1.0f);
+    cube->diffuse = tex2;
+
+    scene.addObject("cube" + std::to_string(10), std::move(cube));
+
+    auto model = scene.NewInstance<Model>("assets/models/backpack/backpack.obj");
+    
+    scene.addObject("model", std::move(model));
+    
     
     // render loop
     // -----------
@@ -111,7 +146,9 @@ int main()
 
 
         scene.view = camera.GetViewMatrix();
-        scene.projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        scene.projection = glm::perspective(glm::radians(camera.Zoom), (float)Render.SCR_W / (float)Render.SCR_H, 0.1f, 100.0f);
+
+        Render.BindFrameBuffer();
 
         shader.use();
         // directional light
@@ -122,12 +159,21 @@ int main()
         // spotLight
         Lights::spotLight(shader, camera.Position, camera.Front, glm::vec3(1.0f,1.0f,1.0f), 0.8f, 20.0f, 12.5f, 15.0f); 
 
-        if (Object* obj = scene.getObject("cube1")) {
+        if (Object* obj = scene.getObject("model")) {
             obj->rotation = glm::vec3(0.0f, glfwGetTime() * 20, 0.0f);
         }
         ImGui::ShowDemoWindow();
 
         scene.render();
+
+        Render.UnbindFrameBuffer();
+        glDisable(GL_DEPTH_TEST);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        screenShader.use();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, Render.GetFrameBufferTexture());
+        br.draw();
 
         Render.RenderLast();
     }
@@ -163,15 +209,6 @@ void processInput(GLFWwindow *window, Input* input)
         camera.ProcessKeyboard(UP, dt);
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
         camera.ProcessKeyboard(DOWN, dt);
-}
-
-// glfw: whenever the window size changed (by OS or user resize) this callback function executes
-// ---------------------------------------------------------------------------------------------
-void framebuffer_size_callback(GLFWwindow* window, int width, int height)
-{
-    // make sure the viewport matches the new window dimensions; note that width and 
-    // height will be significantly larger than specified on retina displays.
-    glViewport(0, 0, width, height);
 }
 
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
