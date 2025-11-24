@@ -10,7 +10,6 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "bufferRenderer.hpp"
-#include "./IO/camera.hpp"
 #include "./IO/input.hpp"
 
 
@@ -26,6 +25,7 @@
 
 #include "framebuffer.hpp"
 #include "scene.hpp"
+#include "cubemap.hpp"
 #include <memory> 
 
 #include "renderer.hpp"
@@ -70,6 +70,8 @@ int main()
     Shader shader("assets/shaders/shader.vs", "assets/shaders/shader.fs");
     Shader screenShader("assets/shaders/screen_shader.vs", "assets/shaders/screen_shader.fs");
     Shader lightCubeShader("assets/shaders/light_cube.vs", "assets/shaders/light_cube.fs");
+    Shader skyboxShader("assets/shaders/skybox.vs", "assets/shaders/skybox.fs");
+    Shader reflectShader("assets/shaders/reflect.vs", "assets/shaders/reflect.fs");
 
     Texture tex("assets/textures/container2.png");
     Texture spec("assets/textures/container2_specular.png");
@@ -116,6 +118,16 @@ int main()
     br.addAttrib(1, 2, GL_FLOAT);
 
     br.link();
+    std::vector<std::string> faces{
+        "assets/textures/skybox/right.jpg",
+        "assets/textures/skybox/left.jpg",
+        "assets/textures/skybox/top.jpg",
+        "assets/textures/skybox/bottom.jpg",
+        "assets/textures/skybox/front.jpg",
+        "assets/textures/skybox/back.jpg"
+    };
+
+    Cubemap skybox(skyboxShader, faces, "skybox");
 
     Scene scene;
     
@@ -133,6 +145,9 @@ int main()
     cube->position = glm::vec3(-1.0f,-1.0f,-1.0f);
     cube->scale = glm::vec3(1.0f);
     cube->diffuse = tex2;
+    cube->shader = &reflectShader;
+
+    skybox.BindTex(reflectShader, "skybox", 0);
 
     scene.addObject("cube" + std::to_string(10), std::move(cube));
 
@@ -149,6 +164,9 @@ int main()
 
         scene.view = camera.GetViewMatrix();
         scene.projection = glm::perspective(glm::radians(camera.Zoom), (float)Render.SCR_W / (float)Render.SCR_H, 0.1f, 100.0f);
+
+        reflectShader.use();
+        reflectShader.setVec3("cameraPos", camera.Position);
 
         buffer.BindFrameBuffer();
         glEnable(GL_DEPTH_TEST);
@@ -169,6 +187,8 @@ int main()
         ImGui::ShowDemoWindow();
 
         scene.render();
+
+        skybox.Draw(scene.view, scene.projection, camera);
 
         buffer.UnbindFrameBuffer();
         glDisable(GL_DEPTH_TEST);

@@ -14,11 +14,14 @@ public:
     Model(std::string path) : mod((char*)path.c_str()) {};
 
     void update(float dt) override {}
-    void render(glm::mat4 view, glm::mat4 projection, Shader* shader) override {
-        shader->use();
-        shader->setFloat("material.shininess", 32.0f);
-        shader->setMat4("projection", projection);
-        shader->setMat4("view", view);
+    void render(glm::mat4 view, glm::mat4 projection, Shader* defaultShader) override {
+        Shader* useShader = shader ? shader : defaultShader;
+        if (!useShader) return;
+
+        useShader->use();
+        useShader->setFloat("material.shininess", 32.0f);
+        useShader->setMat4("projection", projection);
+        useShader->setMat4("view", view);
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::mat4(1.0f);
         model = glm::translate(model, position);
@@ -28,8 +31,8 @@ public:
             glm::radians(rotation.z)
         );
         model = glm::scale(model, scale); 
-        shader->setMat4("model", model);
-        mod.Draw(*shader);
+        useShader->setMat4("model", model);
+        mod.Draw(*useShader);
     }
 private:
     ModelLoader mod;

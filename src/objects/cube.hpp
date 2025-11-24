@@ -69,13 +69,16 @@ public:
         -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
     };
     void update(float dt) override {}
-    void render(glm::mat4 view, glm::mat4 projection, Shader* shader) override {
-        shader->use();
+    void render(glm::mat4 view, glm::mat4 projection, Shader* defaultShader) override {
+        Shader* useShader = shader ? shader : defaultShader;
+        if (!useShader) return;
+        
+        useShader->use();
         diffuse.bind(0, "material.diffuse");
         specular.bind(1, "material.specular");
-        shader->setFloat("material.shininess", 32.0f);
-        shader->setMat4("projection", projection);
-        shader->setMat4("view", view);
+        useShader->setFloat("material.shininess", 32.0f);
+        useShader->setMat4("projection", projection);
+        useShader->setMat4("view", view);
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::mat4(1.0f);
         model = glm::translate(model, position);
@@ -85,7 +88,7 @@ public:
             glm::radians(rotation.z)
         );
         model = glm::scale(model, scale); 
-        shader->setMat4("model", model);
+        useShader->setMat4("model", model);
         cube.draw();
     }
 private:

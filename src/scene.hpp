@@ -17,6 +17,8 @@ public:
     glm::mat4 view;
     glm::mat4 projection;
 
+    Scene() {}
+
     void addObject(const std::string& name, std::unique_ptr<Object> obj) {
         objects[name] = std::move(obj);
     }
@@ -32,8 +34,10 @@ public:
     }
 
     void render() {
+        Shader* defaultShader = Shader::getCurrentShader();
+
         for (auto& [name, obj] : objects) {
-            obj->render(view, projection, Shader::getCurrentShader());
+            obj->render(view, projection, defaultShader);
         }
     }
     template <typename T, typename... Args>
