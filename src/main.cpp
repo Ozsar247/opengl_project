@@ -24,6 +24,7 @@
 #include "./objects/model.hpp"
 #include "object.hpp"
 
+#include "framebuffer.hpp"
 #include "scene.hpp"
 #include <memory> 
 
@@ -94,7 +95,8 @@ int main()
         glm::vec3( 0.0f,  0.0f, -3.0f)
     };
 
-    Render.InitFrameBuffer(Render.SCR_W, Render.SCR_H, &screenShader);
+    Framebuffer buffer(0, Render.SCR_W, Render.SCR_H, &screenShader);
+    Render.InsertFrameBuffer(&buffer);
 
     float quadVertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
         // positions   // texCoords
@@ -148,7 +150,9 @@ int main()
         scene.view = camera.GetViewMatrix();
         scene.projection = glm::perspective(glm::radians(camera.Zoom), (float)Render.SCR_W / (float)Render.SCR_H, 0.1f, 100.0f);
 
-        Render.BindFrameBuffer();
+        buffer.BindFrameBuffer();
+        glEnable(GL_DEPTH_TEST);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         shader.use();
         // directional light
@@ -166,13 +170,13 @@ int main()
 
         scene.render();
 
-        Render.UnbindFrameBuffer();
+        buffer.UnbindFrameBuffer();
         glDisable(GL_DEPTH_TEST);
         glClear(GL_COLOR_BUFFER_BIT);
 
         screenShader.use();
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, Render.GetFrameBufferTexture());
+        glBindTexture(GL_TEXTURE_2D, buffer.Texture());
         br.draw();
 
         Render.RenderLast();

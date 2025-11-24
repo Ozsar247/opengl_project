@@ -10,6 +10,7 @@
 
 #include "./IO/input.hpp"
 #include "shader.hpp"
+#include "framebuffer.hpp"
 
 #include <string>
 #include <functional>
@@ -22,7 +23,9 @@ public:
         Renderer* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
         renderer->SCR_W = width;
         renderer->SCR_H = height;
-        renderer->ResizeFrameBuffer(width, height);
+        for (auto* buf : framebuffers) {
+            buf->ResizeFrameBuffer(width, height);
+        }
         glViewport(0, 0, width, height);
     }
     inline static unsigned int SCR_W = 800;
@@ -57,6 +60,7 @@ public:
         }
 
         glEnable(GL_DEPTH_TEST);
+        
 
         // Framebuffer resize callback
         glfwSetWindowUserPointer(window, this);
@@ -78,69 +82,9 @@ public:
         clearBuffers = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT;
     }
 
-    // -------------------
-    // FRAMEBUFFER SETUP
-    // -------------------
-    void InitFrameBuffer(int width, int height, Shader* screenShader) {
-        SCR_W = width;
-        SCR_H = height;
-
-        // Setup screen shader uniform
-        screenShader->use();
-        screenShader->setInt("screenTexture", 0);
-
-        // Generate framebuffer
-        glGenFramebuffers(1, &framebuffer);
-        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-
-        // Color texture
-        glGenTextures(1, &textureColorbuffer);
-        glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCR_W, SCR_H, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
-
-        // Renderbuffer for depth & stencil
-        glGenRenderbuffers(1, &rbo);
-        glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, SCR_W, SCR_H);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
-
-        // Check completeness
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-            std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
-
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    void InsertFrameBuffer(Framebuffer* fb) {
+        framebuffers.insert(fb);
     }
-
-    void ResizeFrameBuffer(int width, int height) {
-        SCR_W = width;
-        SCR_H = height;
-
-        glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCR_W, SCR_H, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
-
-        glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, SCR_W, SCR_H);
-    }
-
-    void BindFrameBuffer() {
-        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-        glViewport(0, 0, SCR_W, SCR_H);
-
-        glEnable(GL_DEPTH_TEST);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    }
-
-    void UnbindFrameBuffer() {
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        int width, height;
-        glfwGetFramebufferSize(window, &width, &height);
-        glViewport(0, 0, width, height);
-    }
-
-    unsigned int GetFrameBufferTexture() { return textureColorbuffer; }
 
     // -------------------
     // MAIN RENDER LOOP
@@ -194,10 +138,6 @@ public:
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
 
-        glDeleteFramebuffers(1, &framebuffer);
-        glDeleteTextures(1, &textureColorbuffer);
-        glDeleteRenderbuffers(1, &rbo);
-
         glfwTerminate();
     }
 
@@ -212,11 +152,7 @@ private:
     unsigned int clearBuffers;
 
     std::function<void(GLFWwindow*)> inputCallback;
-
-    // Framebuffer
-    unsigned int framebuffer = 0;
-    unsigned int textureColorbuffer = 0;
-    unsigned int rbo = 0;
+    inline static std::unordered_set<Framebuffer*> framebuffers;
 
     float CalculateDeltaTime() {
         float currentFrame = glfwGetTime();
