@@ -29,12 +29,17 @@
 #include <memory> 
 
 #include "renderer.hpp"
+#include "tinyfiledialogs/tinyfiledialogs.h"
 
 #include <iostream>
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window, Input* input);
+void RenderObjectExplorer(std::unordered_map<std::string, std::unique_ptr<Object>>& objects);
+void TextureViewerRenderer();
+void PropertiesRenderer();
+void WorldRenderer(int& s_x, int& s_y, unsigned int viewport);
 
 // settings
 const unsigned int SCR_WIDTH = 800;
@@ -51,6 +56,8 @@ float dt;
 glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
 
 bool cursorEnabled = false;
+
+Object* selectedObject = nullptr;
 
 int main()
 {
@@ -75,7 +82,6 @@ int main()
 
     Texture tex("assets/textures/container2.png");
     Texture spec("assets/textures/container2_specular.png");
-    Texture tex2("assets/textures/uv.png");
 
     glm::vec3 cubePositions[] = {
         glm::vec3( 0.0f,  0.0f,  0.0f),
@@ -135,8 +141,8 @@ int main()
         auto cube = scene.NewInstance<Cube>();
         cube->position = cubePositions[i];
         cube->scale = glm::vec3(1.0f);
-        cube->diffuse = tex;
-        cube->specular = spec;
+        cube->diffuse = &tex;
+        cube->specular = &spec;
 
         scene.addObject("cube" + std::to_string(i), std::move(cube));
     }
@@ -144,14 +150,15 @@ int main()
     auto cube = scene.NewInstance<Cube>();
     cube->position = glm::vec3(-1.0f,-1.0f,-1.0f);
     cube->scale = glm::vec3(1.0f);
-    cube->diffuse = tex2;
     cube->shader = &reflectShader;
 
     skybox.BindTex(reflectShader, "skybox", 0);
 
     scene.addObject("cube" + std::to_string(10), std::move(cube));
+    
 
     auto model = scene.NewInstance<Model>("assets/models/backpack/backpack.obj");
+
     
     scene.addObject("model", std::move(model));
     
@@ -159,8 +166,13 @@ int main()
     // render loop
     // -----------
     while (Render.RenderLoop()) {
-        dt = Render.GetDeltaTime();
 
+        int sx;
+        int sy;
+        Render.Viewport(Render.GetWindow(), sx, sy);
+        WorldRenderer(sx, sy, buffer.Texture());
+
+        dt = Render.GetDeltaTime();
 
         scene.view = camera.GetViewMatrix();
         scene.projection = glm::perspective(glm::radians(camera.Zoom), (float)Render.SCR_W / (float)Render.SCR_H, 0.1f, 100.0f);
@@ -186,6 +198,14 @@ int main()
         }
         ImGui::ShowDemoWindow();
 
+        ImGui::Begin("Render");
+        ImGui::Checkbox("Wireframe", &scene.wireframe);
+        ImGui::End();
+
+        RenderObjectExplorer(scene.Objects());
+        TextureViewerRenderer();
+        PropertiesRenderer();
+
         scene.render();
 
         skybox.Draw(scene.view, scene.projection, camera);
@@ -199,10 +219,11 @@ int main()
         glBindTexture(GL_TEXTURE_2D, buffer.Texture());
         br.draw();
 
+        glClear(GL_COLOR_BUFFER_BIT);
+
         Render.RenderLast();
     }
 
-    Render.Cleanup();
     return 0;
 }
 
@@ -268,4 +289,121 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
     if (cursorEnabled) {
         camera.ProcessMouseScroll(static_cast<float>(yoffset));
     }
+}
+
+void RenderObjectExplorer(std::unordered_map<std::string, std::unique_ptr<Object>>& objects)
+{
+    ImGui::Begin("Object Explorer");
+
+    for (auto& [name, objPtr] : objects)
+    {
+        Object* obj = objPtr.get();
+
+        ImGuiTreeNodeFlags flags =
+            ImGuiTreeNodeFlags_OpenOnArrow |
+            ImGuiTreeNodeFlags_SpanAvailWidth |
+            ImGuiTreeNodeFlags_FramePadding |
+            ImGuiTreeNodeFlags_Leaf;
+
+        // Highlight if selected
+        if (selectedObject == obj)
+            flags |= ImGuiTreeNodeFlags_Selected;
+
+        bool open = ImGui::TreeNodeEx(name.c_str(), flags);
+
+        // Handle click → set selected
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+            selectedObject = obj;
+            std::cout << "Selected: " << name << "\n";
+        }
+
+        if (open)
+            ImGui::TreePop();
+    }
+
+    ImGui::End();
+}
+
+void TextureViewerRenderer() {
+    ImGui::Begin("Textures");
+
+    // --- Existing textures ---
+    for (Texture* tex : Texture::getAllTextures()) {
+
+        if (ImGui::ImageButton(
+                tex->path.c_str(),
+                (ImTextureID)(intptr_t)tex->texture,
+                ImVec2(200, 200),
+                ImVec2(0, 1),
+                ImVec2(1, 0))) 
+        {
+            const char* filterPatterns[] = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
+            const char* file = tinyfd_openFileDialog(
+                "Select Texture",
+                "",
+                4,
+                filterPatterns,
+                "Image files",
+                0);
+
+            if (file) {
+                tex->load(file);
+            }
+        }
+
+        // Tooltip
+        if (ImGui::IsItemHovered()) {
+            std::string tooltip = tex->path + "\nTexture ID: " + std::to_string(tex->id);
+            ImGui::SetTooltip("%s", tooltip.c_str());
+        }
+    }
+
+    ImGui::Separator();
+
+    // --- PLUS BUTTON FOR ADDING NEW TEXTURE ---
+    if (ImGui::Button("+", ImVec2(200, 40))) {
+        const char* filterPatterns[] = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
+        const char* file = tinyfd_openFileDialog(
+            "Add Texture",
+            "",
+            4,
+            filterPatterns,
+            "Image files",
+            0);
+
+        if (file) {
+            // Allocate new texture
+            Texture* newTex = new Texture();
+            newTex->load(file);
+
+            // Add to your global list (implement this)
+
+        }
+    }
+
+    ImGui::End();
+}
+
+
+void PropertiesRenderer() {
+    ImGui::Begin("Properties");
+    if (selectedObject) {
+        selectedObject->drawInspector();
+    } else {
+        ImGui::Text("No Object Selected!");
+    }  
+    ImGui::End();
+}
+
+void WorldRenderer(int& s_x, int& s_y, unsigned int viewport) {
+    ImGui::Begin("World");
+
+    ImVec2 size = ImGui::GetWindowSize();
+
+    ImGui::Image((ImTextureID)(intptr_t)viewport, size, ImVec2(0,1 ), ImVec2(1, 0));
+
+    s_x = size.x;
+    s_y = size.y;
+
+    ImGui::End();
 }

@@ -16,6 +16,7 @@ class Scene {
 public:
     glm::mat4 view;
     glm::mat4 projection;
+    bool wireframe = false;
 
     Scene() {}
 
@@ -33,16 +34,30 @@ public:
         }
     }
 
+    
+
     void render() {
         Shader* defaultShader = Shader::getCurrentShader();
+
+        if (wireframe) {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        } else {   
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        }
 
         for (auto& [name, obj] : objects) {
             obj->render(view, projection, defaultShader);
         }
+        
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     }
     template <typename T, typename... Args>
     static std::unique_ptr<T> NewInstance(Args&&... args) {
         return std::make_unique<T>(std::forward<Args>(args)...);
+    }
+
+    std::unordered_map<std::string, std::unique_ptr<Object>>& Objects() {
+        return objects;
     }
 
     Object* getObject(const std::string& name) {

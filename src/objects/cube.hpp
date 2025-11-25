@@ -10,12 +10,15 @@
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "../editor/inspector.hpp"
+
 
 class Cube : public Object {
 public:
-    Texture diffuse;
-    Texture specular;
-
+    Texture* diffuse = nullptr;
+    int diffuseID = 0;
+    Texture* specular = nullptr;
+    int specularID = 0;
     Cube() {
         cube.setVertices(vertices, sizeof(vertices)/sizeof(float));
 
@@ -24,6 +27,13 @@ public:
         cube.addAttrib(2, 2, GL_FLOAT); // texcoords
         cube.link();
     };
+    void drawInspector() override {
+        Object::drawInspector(); // draw base properties
+        ImGui::Separator();
+        ImGui::Text("Cube");
+        Inspector::drawTextureField("Diffuse", diffuse, diffuseID);
+        Inspector::drawTextureField("Specular", specular, specularID);
+    }
     float vertices[288] = {
         // positions          // normals           // texture coords
         -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
@@ -74,8 +84,12 @@ public:
         if (!useShader) return;
         
         useShader->use();
-        diffuse.bind(0, "material.diffuse");
-        specular.bind(1, "material.specular");
+        if (diffuse) {
+            diffuse->bind(0, "material.diffuse");
+        }
+        if (specular) {
+            specular->bind(1, "material.specular");
+        }
         useShader->setFloat("material.shininess", 32.0f);
         useShader->setMat4("projection", projection);
         useShader->setMat4("view", view);

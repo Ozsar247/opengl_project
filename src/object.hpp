@@ -12,7 +12,15 @@ public:
 
     Shader* shader = nullptr;
 
-    virtual ~Object() {}
+    virtual void drawInspector() {
+        ImGui::Text("Base Object");
+
+        ImGui::DragFloat3("Position", glm::value_ptr(position), 0.1f);
+        ImGui::DragFloat3("Rotation", glm::value_ptr(rotation), 0.1f);
+        ImGui::DragFloat3("Scale",     glm::value_ptr(scale),     0.1f);
+    }
+
+    virtual ~Object() = default;
     virtual void update(float dt) = 0;
     virtual void render(glm::mat4 view, glm::mat4 projection, Shader* defaultShader) = 0;
     

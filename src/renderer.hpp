@@ -7,6 +7,7 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_impl_opengl3.h"
+#include "imgui/imgui_internal.h"
 
 #include "./IO/input.hpp"
 #include "shader.hpp"
@@ -19,14 +20,7 @@
 class Renderer {
 public:
     static void FramebufferSizeCallback(GLFWwindow* window, int width, int height) {
-        // Get your Renderer instance via glfwGetWindowUserPointer
-        Renderer* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
-        renderer->SCR_W = width;
-        renderer->SCR_H = height;
-        for (auto* buf : framebuffers) {
-            buf->ResizeFrameBuffer(width, height);
-        }
-        glViewport(0, 0, width, height);
+        //Viewport(width, height);
     }
     inline static unsigned int SCR_W = 800;
     inline static unsigned int SCR_H = 600;
@@ -42,6 +36,7 @@ public:
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_SAMPLES, 4);
     #ifdef __APPLE__
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     #endif
@@ -60,7 +55,7 @@ public:
         }
 
         glEnable(GL_DEPTH_TEST);
-        
+        glEnable(GL_MULTISAMPLE);  
 
         // Framebuffer resize callback
         glfwSetWindowUserPointer(window, this);
@@ -82,8 +77,23 @@ public:
         clearBuffers = GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT;
     }
 
+    ~Renderer() {
+        Cleanup();
+    }
+
     void InsertFrameBuffer(Framebuffer* fb) {
         framebuffers.insert(fb);
+    }
+
+    static void Viewport(GLFWwindow* window, int x, int y) {
+        // Get your Renderer instance via glfwGetWindowUserPointer
+        Renderer* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
+        renderer->SCR_W = x;
+        renderer->SCR_H = y;
+        for (auto* buf : framebuffers) {
+            buf->ResizeFrameBuffer(x, y);
+        }
+        glViewport(0, 0, x, y);
     }
 
     // -------------------
@@ -100,6 +110,29 @@ public:
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+
+        ImGuiID dockspace_id = ImGui::GetID("My Dockspace");
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+
+        // Create settings
+        if (ImGui::DockBuilderGetNode(dockspace_id) == nullptr)
+        {
+            ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
+            ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
+            ImGuiID dock_id_left = 0;
+            ImGuiID dock_id_main = dockspace_id;
+            ImGui::DockBuilderSplitNode(dock_id_main, ImGuiDir_Left, 0.20f, &dock_id_left, &dock_id_main);
+            ImGuiID dock_id_left_top = 0;
+            ImGuiID dock_id_left_bottom = 0;
+            ImGui::DockBuilderSplitNode(dock_id_left, ImGuiDir_Up, 0.50f, &dock_id_left_top, &dock_id_left_bottom);
+            ImGui::DockBuilderDockWindow("World", dock_id_main);
+            ImGui::DockBuilderDockWindow("Properties", dock_id_left_top);
+            ImGui::DockBuilderDockWindow("Object Explorer", dock_id_left_bottom);
+            ImGui::DockBuilderFinish(dockspace_id);
+        }
+
+        // Submit dockspace
+        ImGui::DockSpaceOverViewport(dockspace_id, viewport, ImGuiDockNodeFlags_PassthruCentralNode);
 
         glClearColor(clearColor.x, clearColor.y, clearColor.z, 1.0f);
         glClear(clearBuffers);
