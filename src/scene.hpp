@@ -12,10 +12,11 @@
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "./IO/camera.hpp"
+
 class Scene {
 public:
-    glm::mat4 view;
-    glm::mat4 projection;
+    Camera* camera;
     bool wireframe = false;
 
     Scene() {}
@@ -38,6 +39,7 @@ public:
 
     void render() {
         Shader* defaultShader = Shader::getCurrentShader();
+        camera->UpdateMatrices();
 
         if (wireframe) {
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -46,7 +48,7 @@ public:
         }
 
         for (auto& [name, obj] : objects) {
-            obj->render(view, projection, defaultShader);
+            obj->render(camera->view, camera->projection, defaultShader);
         }
         
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);

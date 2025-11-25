@@ -31,19 +31,9 @@
 #include "renderer.hpp"
 #include "tinyfiledialogs/tinyfiledialogs.h"
 
+#include "./editor/mainEditorWindows.hpp"
+
 #include <iostream>
-
-void mouse_callback(GLFWwindow* window, double xpos, double ypos);
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
-void processInput(GLFWwindow *window, Input* input);
-void RenderObjectExplorer(std::unordered_map<std::string, std::unique_ptr<Object>>& objects);
-void TextureViewerRenderer();
-void PropertiesRenderer();
-void WorldRenderer(int& s_x, int& s_y, unsigned int viewport);
-
-// settings
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
 
 // Camera Defaults
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -57,22 +47,20 @@ glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
 
 bool cursorEnabled = false;
 
-Object* selectedObject = nullptr;
-
 int main()
 {
     // glfw: initialize and configure
     // ------------------------------
-    Renderer Render(SCR_WIDTH, SCR_HEIGHT, "OpenGL Tutorial");
+    Renderer Render(800, 600, "OpenGL Tutorial");
     GLFWwindow* window = Render.GetWindow();
 
-    Render.SetInputProcessor([&Render](GLFWwindow* window) {
-        processInput(window, Render.GetInput());
-    });
-    Render.SetMouseInputProcessor(mouse_callback);
-    Render.SetScrollInputProcessor(scroll_callback);
+    //Render.SetInputProcessor([&Render](GLFWwindow* window) {
+    //    processInput(window, Render.GetInput());
+    //});
+    //Render.SetMouseInputProcessor(mouse_callback);
+    //Render.SetScrollInputProcessor(scroll_callback);
 
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);  
+    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);  
 
     Shader shader("assets/shaders/shader.vs", "assets/shaders/shader.fs");
     Shader screenShader("assets/shaders/screen_shader.vs", "assets/shaders/screen_shader.fs");
@@ -136,6 +124,7 @@ int main()
     Cubemap skybox(skyboxShader, faces, "skybox");
 
     Scene scene;
+    scene.camera = &camera;
     
     for (int i = 0; i < 10; i++) {
         auto cube = scene.NewInstance<Cube>();
@@ -169,14 +158,11 @@ int main()
 
         int sx;
         int sy;
-        Render.Viewport(Render.GetWindow(), sx, sy);
-        WorldRenderer(sx, sy, buffer.Texture());
+        MainEditorWindows::ViewportRenderer(sx, sy, buffer.Texture(), camera, Render.GetWindow(), scene);
+        Renderer::Viewport(Render.GetWindow(), sx, sy);
 
         dt = Render.GetDeltaTime();
-
-        scene.view = camera.GetViewMatrix();
-        scene.projection = glm::perspective(glm::radians(camera.Zoom), (float)Render.SCR_W / (float)Render.SCR_H, 0.1f, 100.0f);
-
+        
         reflectShader.use();
         reflectShader.setVec3("cameraPos", camera.Position);
 
@@ -202,13 +188,14 @@ int main()
         ImGui::Checkbox("Wireframe", &scene.wireframe);
         ImGui::End();
 
-        RenderObjectExplorer(scene.Objects());
-        TextureViewerRenderer();
-        PropertiesRenderer();
+        MainEditorWindows::RenderObjectExplorer(scene.Objects());
+        MainEditorWindows::TextureViewerRenderer();
+        MainEditorWindows::PropertiesRenderer();
 
         scene.render();
-
-        skybox.Draw(scene.view, scene.projection, camera);
+        
+        skybox.Draw(camera);
+        
 
         buffer.UnbindFrameBuffer();
         glDisable(GL_DEPTH_TEST);
@@ -219,191 +206,12 @@ int main()
         glBindTexture(GL_TEXTURE_2D, buffer.Texture());
         br.draw();
 
+        Render.SetClearColor(0.2f, 0.2f, 0.2f);
+
         glClear(GL_COLOR_BUFFER_BIT);
 
         Render.RenderLast();
     }
 
     return 0;
-}
-
-// process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
-// ---------------------------------------------------------------------------------------------------------
-void processInput(GLFWwindow *window, Input* input)
-{
-    if (ImGui::GetIO().WantCaptureKeyboard) return;
-    if (input->isKeyUp(GLFW_KEY_ESCAPE)) {
-        //glfwSetWindowShouldClose(window, true);
-        if (!cursorEnabled) {
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);  
-        } else {
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);  
-        }
-        cursorEnabled = !cursorEnabled;
-    }
-
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        camera.ProcessKeyboard(FORWARD, dt);
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        camera.ProcessKeyboard(BACKWARD, dt);
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        camera.ProcessKeyboard(LEFT, dt);
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        camera.ProcessKeyboard(RIGHT, dt);
-    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
-        camera.ProcessKeyboard(UP, dt);
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-        camera.ProcessKeyboard(DOWN, dt);
-}
-
-void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
-{
-    ImGui_ImplGlfw_CursorPosCallback(window, xposIn, yposIn);
-    if (ImGui::GetIO().WantCaptureMouse) return;
-    float xpos = static_cast<float>(xposIn);
-    float ypos = static_cast<float>(yposIn);
-
-    if (firstMouse)
-    {
-        lastX = xpos;
-        lastY = ypos;
-        firstMouse = false;
-    }
-
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
-
-    lastX = xpos;
-    lastY = ypos;
-
-    if (cursorEnabled) {
-        camera.ProcessMouseMovement(xoffset, yoffset);
-    }
-}
-
-// glfw: whenever the mouse scroll wheel scrolls, this callback is called
-// ----------------------------------------------------------------------
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
-{
-    ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
-    if (cursorEnabled) {
-        camera.ProcessMouseScroll(static_cast<float>(yoffset));
-    }
-}
-
-void RenderObjectExplorer(std::unordered_map<std::string, std::unique_ptr<Object>>& objects)
-{
-    ImGui::Begin("Object Explorer");
-
-    for (auto& [name, objPtr] : objects)
-    {
-        Object* obj = objPtr.get();
-
-        ImGuiTreeNodeFlags flags =
-            ImGuiTreeNodeFlags_OpenOnArrow |
-            ImGuiTreeNodeFlags_SpanAvailWidth |
-            ImGuiTreeNodeFlags_FramePadding |
-            ImGuiTreeNodeFlags_Leaf;
-
-        // Highlight if selected
-        if (selectedObject == obj)
-            flags |= ImGuiTreeNodeFlags_Selected;
-
-        bool open = ImGui::TreeNodeEx(name.c_str(), flags);
-
-        // Handle click → set selected
-        if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
-            selectedObject = obj;
-            std::cout << "Selected: " << name << "\n";
-        }
-
-        if (open)
-            ImGui::TreePop();
-    }
-
-    ImGui::End();
-}
-
-void TextureViewerRenderer() {
-    ImGui::Begin("Textures");
-
-    // --- Existing textures ---
-    for (Texture* tex : Texture::getAllTextures()) {
-
-        if (ImGui::ImageButton(
-                tex->path.c_str(),
-                (ImTextureID)(intptr_t)tex->texture,
-                ImVec2(200, 200),
-                ImVec2(0, 1),
-                ImVec2(1, 0))) 
-        {
-            const char* filterPatterns[] = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
-            const char* file = tinyfd_openFileDialog(
-                "Select Texture",
-                "",
-                4,
-                filterPatterns,
-                "Image files",
-                0);
-
-            if (file) {
-                tex->load(file);
-            }
-        }
-
-        // Tooltip
-        if (ImGui::IsItemHovered()) {
-            std::string tooltip = tex->path + "\nTexture ID: " + std::to_string(tex->id);
-            ImGui::SetTooltip("%s", tooltip.c_str());
-        }
-    }
-
-    ImGui::Separator();
-
-    // --- PLUS BUTTON FOR ADDING NEW TEXTURE ---
-    if (ImGui::Button("+", ImVec2(200, 40))) {
-        const char* filterPatterns[] = { "*.png", "*.jpg", "*.jpeg", "*.bmp" };
-        const char* file = tinyfd_openFileDialog(
-            "Add Texture",
-            "",
-            4,
-            filterPatterns,
-            "Image files",
-            0);
-
-        if (file) {
-            // Allocate new texture
-            Texture* newTex = new Texture();
-            newTex->load(file);
-
-            // Add to your global list (implement this)
-
-        }
-    }
-
-    ImGui::End();
-}
-
-
-void PropertiesRenderer() {
-    ImGui::Begin("Properties");
-    if (selectedObject) {
-        selectedObject->drawInspector();
-    } else {
-        ImGui::Text("No Object Selected!");
-    }  
-    ImGui::End();
-}
-
-void WorldRenderer(int& s_x, int& s_y, unsigned int viewport) {
-    ImGui::Begin("World");
-
-    ImVec2 size = ImGui::GetWindowSize();
-
-    ImGui::Image((ImTextureID)(intptr_t)viewport, size, ImVec2(0,1 ), ImVec2(1, 0));
-
-    s_x = size.x;
-    s_y = size.y;
-
-    ImGui::End();
 }

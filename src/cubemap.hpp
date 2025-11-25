@@ -79,12 +79,12 @@ public:
         shader.setInt(texName, id);
     }
 
-    void Draw(glm::mat4 view, glm::mat4 projection, Camera& camera) {
+    void Draw(Camera& camera) {
         glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
         shader.use();
-        view = glm::mat4(glm::mat3(camera.GetViewMatrix())); // remove translation from the view matrix
+        glm::mat4 view = glm::mat4(glm::mat3(camera.view)); // remove translation from the view matrix
         shader.setMat4("view", view);
-        shader.setMat4("projection", projection);
+        shader.setMat4("projection", camera.projection);
         // skybox cube
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
