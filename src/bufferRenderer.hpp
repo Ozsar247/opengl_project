@@ -4,6 +4,8 @@
 #include <vector>
 #include <cstddef>
 
+#include "object.hpp"
+
 struct VertexAttrib {
     GLuint index;
     GLint size;
@@ -14,6 +16,61 @@ struct VertexAttrib {
 
 class BufferRenderer {
 public:
+    class Instanced {
+    public:
+        Instanced(Object& obj, unsigned int count, const std::vector<glm::mat4>& modelMatrices)
+            : object(obj), count(count)
+        {
+            // Create instance buffer
+            glGenBuffers(1, &buffer);
+            glBindBuffer(GL_ARRAY_BUFFER, buffer);
+            glBufferData(GL_ARRAY_BUFFER, count * sizeof(glm::mat4), modelMatrices.data(), GL_STATIC_DRAW);
+
+            // Setup vertex attributes for instanced matrices
+            for (unsigned int i = 0; i < object.GetVAOList().size(); i++) {
+                unsigned int VAO = *object.GetVAOList()[i];
+                glBindVertexArray(VAO);
+
+                // Set attribute pointers for mat4 (4 x vec4)
+                for (unsigned int j = 0; j < 4; j++) {
+                    glEnableVertexAttribArray(3 + j);
+                    glVertexAttribPointer(3 + j, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(sizeof(glm::vec4) * j));
+                    glVertexAttribDivisor(3 + j, 1);
+                }
+
+                glBindVertexArray(0);
+            }
+        }
+
+        void draw() {
+            if (!object.GetEBOList().empty()) {
+                for (unsigned int i = 0; i < object.GetVAOList().size(); i++) {
+                    glBindVertexArray(*object.GetVAOList()[i]);
+                    glDrawElementsInstanced(GL_TRIANGLES,
+                                            object.GetEBOList().size(),  // or number of indices
+                                            GL_UNSIGNED_INT,
+                                            0,
+                                            count);
+                    glBindVertexArray(0);
+                }
+            } else {
+                for (unsigned int i = 0; i < object.GetVAOList().size(); i++) {
+                    glBindVertexArray(*object.GetVAOList()[i]);
+                    glDrawArraysInstanced(GL_TRIANGLES,
+                                        0,
+                                        object.GetVBOList().size(),  // or number of vertices
+                                        count);
+                    glBindVertexArray(0);
+                }
+            }
+        }
+
+    private:
+        unsigned int buffer;
+        unsigned int count;
+        Object& object;
+    };
+
     BufferRenderer() {
         glGenVertexArrays(1, &vao);
         glGenBuffers(1, &vbo);
@@ -67,6 +124,11 @@ public:
     void addAttribOffset(GLuint index, GLint size, GLenum type, size_t offset, GLboolean normalized = GL_FALSE) {
         attribs.push_back({index, size, type, normalized, offset});
     }
+
+    unsigned int* GetVAO() {return &vao;}
+    unsigned int* GetVBO() {return &vbo;}
+    unsigned int* GetEBO() {if (ebo) return &ebo; else return nullptr;}
+    
 
     // Set stride manually when using structs
     void setStride(size_t s) { totalStride = s; }

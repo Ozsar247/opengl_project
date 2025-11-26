@@ -20,12 +20,23 @@ public:
     Texture* specular = nullptr;
     int specularID = 0;
     Cube() {
-        cube.setVertices(vertices, sizeof(vertices)/sizeof(float));
+        cube.setVertices(cubeVertices);
+        cube.setStride(sizeof(Vertex));
 
-        cube.addAttrib(0, 3, GL_FLOAT); // position
-        cube.addAttrib(1, 3, GL_FLOAT); // normals
-        cube.addAttrib(2, 2, GL_FLOAT); // texcoords
+        cube.addAttribOffset(0, 3, GL_FLOAT, offsetof(Vertex, Position));
+        cube.addAttribOffset(1, 3, GL_FLOAT, offsetof(Vertex, Normal));
+        cube.addAttribOffset(2, 2, GL_FLOAT, offsetof(Vertex, TexCoords));
+        // cube.addAttribOffset(3, 3, GL_FLOAT, offsetof(Vertex, Tangent));
+        // cube.addAttribOffset(4, 3, GL_FLOAT, offsetof(Vertex, Bitangent));
+        // cube.addAttribOffset(5, 4, GL_INT, offsetof(Vertex, m_BoneIDs));
+        // cube.addAttribOffset(6, 4, GL_FLOAT, offsetof(Vertex, m_Weights));
+
         cube.link();
+
+        VAO.push_back(cube.GetVAO());
+        VBO.push_back(cube.GetVBO());
+
+        obj_vertices.push_back(cubeVertices);
     };
     void drawInspector() override {
         Object::drawInspector(); // draw base properties
@@ -34,50 +45,58 @@ public:
         Inspector::drawTextureField("Diffuse", diffuse, diffuseID);
         Inspector::drawTextureField("Specular", specular, specularID);
     }
-    float vertices[288] = {
-        // positions          // normals           // texture coords
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-         0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
 
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
+    std::vector<Vertex> cubeVertices = {
+        // Back face
+        {{-0.5f, -0.5f, -0.5f}, {0.f, 0.f, -1.f}, {0.f, 0.f}},
+        {{ 0.5f, -0.5f, -0.5f}, {0.f, 0.f, -1.f}, {1.f, 0.f}},
+        {{ 0.5f,  0.5f, -0.5f}, {0.f, 0.f, -1.f}, {1.f, 1.f}},
+        {{ 0.5f,  0.5f, -0.5f}, {0.f, 0.f, -1.f}, {1.f, 1.f}},
+        {{-0.5f,  0.5f, -0.5f}, {0.f, 0.f, -1.f}, {0.f, 1.f}},
+        {{-0.5f, -0.5f, -0.5f}, {0.f, 0.f, -1.f}, {0.f, 0.f}},
 
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+        // Front face
+        {{-0.5f, -0.5f, 0.5f}, {0.f, 0.f, 1.f}, {0.f, 0.f}},
+        {{ 0.5f, -0.5f, 0.5f}, {0.f, 0.f, 1.f}, {1.f, 0.f}},
+        {{ 0.5f,  0.5f, 0.5f}, {0.f, 0.f, 1.f}, {1.f, 1.f}},
+        {{ 0.5f,  0.5f, 0.5f}, {0.f, 0.f, 1.f}, {1.f, 1.f}},
+        {{-0.5f,  0.5f, 0.5f}, {0.f, 0.f, 1.f}, {0.f, 1.f}},
+        {{-0.5f, -0.5f, 0.5f}, {0.f, 0.f, 1.f}, {0.f, 0.f}},
 
-        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-        0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+        // Left face
+        {{-0.5f,  0.5f,  0.5f}, {-1.f, 0.f, 0.f}, {1.f, 0.f}},
+        {{-0.5f,  0.5f, -0.5f}, {-1.f, 0.f, 0.f}, {1.f, 1.f}},
+        {{-0.5f, -0.5f, -0.5f}, {-1.f, 0.f, 0.f}, {0.f, 1.f}},
+        {{-0.5f, -0.5f, -0.5f}, {-1.f, 0.f, 0.f}, {0.f, 1.f}},
+        {{-0.5f, -0.5f,  0.5f}, {-1.f, 0.f, 0.f}, {0.f, 0.f}},
+        {{-0.5f,  0.5f,  0.5f}, {-1.f, 0.f, 0.f}, {1.f, 0.f}},
 
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
+        // Right face
+        {{0.5f,  0.5f,  0.5f}, {1.f, 0.f, 0.f}, {1.f, 0.f}},
+        {{0.5f,  0.5f, -0.5f}, {1.f, 0.f, 0.f}, {1.f, 1.f}},
+        {{0.5f, -0.5f, -0.5f}, {1.f, 0.f, 0.f}, {0.f, 1.f}},
+        {{0.5f, -0.5f, -0.5f}, {1.f, 0.f, 0.f}, {0.f, 1.f}},
+        {{0.5f, -0.5f,  0.5f}, {1.f, 0.f, 0.f}, {0.f, 0.f}},
+        {{0.5f,  0.5f,  0.5f}, {1.f, 0.f, 0.f}, {1.f, 0.f}},
 
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
+        // Bottom face
+        {{-0.5f, -0.5f, -0.5f}, {0.f, -1.f, 0.f}, {0.f, 1.f}},
+        {{ 0.5f, -0.5f, -0.5f}, {0.f, -1.f, 0.f}, {1.f, 1.f}},
+        {{ 0.5f, -0.5f,  0.5f}, {0.f, -1.f, 0.f}, {1.f, 0.f}},
+        {{ 0.5f, -0.5f,  0.5f}, {0.f, -1.f, 0.f}, {1.f, 0.f}},
+        {{-0.5f, -0.5f,  0.5f}, {0.f, -1.f, 0.f}, {0.f, 0.f}},
+        {{-0.5f, -0.5f, -0.5f}, {0.f, -1.f, 0.f}, {0.f, 1.f}},
+
+        // Top face
+        {{-0.5f,  0.5f, -0.5f}, {0.f, 1.f, 0.f}, {0.f, 1.f}},
+        {{ 0.5f,  0.5f, -0.5f}, {0.f, 1.f, 0.f}, {1.f, 1.f}},
+        {{ 0.5f,  0.5f,  0.5f}, {0.f, 1.f, 0.f}, {1.f, 0.f}},
+        {{ 0.5f,  0.5f,  0.5f}, {0.f, 1.f, 0.f}, {1.f, 0.f}},
+        {{-0.5f,  0.5f,  0.5f}, {0.f, 1.f, 0.f}, {0.f, 0.f}},
+        {{-0.5f,  0.5f, -0.5f}, {0.f, 1.f, 0.f}, {0.f, 1.f}}
     };
+
+
     void update(float dt) override {}
     void render(glm::mat4 view, glm::mat4 projection, Shader* defaultShader) override {
         Shader* useShader = shader ? shader : defaultShader;

@@ -10,7 +10,7 @@ class Shader {
 public:
     unsigned int ID = 0;
 
-    Shader(const char* vertexPath, const char* fragmentPath);
+    Shader(const char* vertexPath, const char* fragmentPath, const char* geomPath = nullptr);
 
     void use() {
         glUseProgram(ID);

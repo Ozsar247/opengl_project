@@ -19,6 +19,8 @@ public:
         loadModel(path);
     }
 
+    std::vector<Mesh> getMeshes() {return meshes;}
+
     void Draw(Shader &shader) {
         for (auto& mesh : meshes)
             mesh.Draw(shader);

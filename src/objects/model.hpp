@@ -15,6 +15,18 @@ public:
     Model(const std::string& modelPath) {
         path = modelPath;
         mod = new ModelLoader(path.c_str());
+
+        for (auto mesh : mod->getMeshes()) {
+            VAO.push_back(mesh.GetVAO());
+            VBO.push_back(mesh.GetVBO());
+            if (mesh.GetEBO()) {
+                EBO.push_back(mesh.GetEBO());
+            }
+            obj_vertices.push_back(mesh.vertices);
+            obj_indices.push_back(mesh.indices);
+        }
+
+        
     }
 
     ~Model() {

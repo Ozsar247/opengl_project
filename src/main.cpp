@@ -68,6 +68,9 @@ int main()
     Shader skyboxShader("assets/shaders/skybox.vs", "assets/shaders/skybox.fs");
     Shader reflectShader("assets/shaders/reflect.vs", "assets/shaders/reflect.fs");
 
+    Shader gridShader("assets/shaders/grid.vs", "assets/shaders/grid.fs");
+    Shader instancedShader("assets/shaders/instanced.vs", "assets/shaders/instanced.fs");
+
     Texture tex("assets/textures/container2.png");
     Texture spec("assets/textures/container2_specular.png");
 
@@ -112,6 +115,56 @@ int main()
     br.addAttrib(1, 2, GL_FLOAT);
 
     br.link();
+    float qVertices[] = {
+        -1000.0f, 0.0f, -1000.0f,
+        1000.0f, 0.0f, -1000.0f,
+        1000.0f, 0.0f,  1000.0f,
+        -1000.0f, 0.0f,  1000.0f
+    };
+
+    unsigned int quadIndices[] = {
+        0, 1, 2,
+        2, 3, 0
+    };
+    BufferRenderer grid;
+    grid.setVertices(qVertices, sizeof(qVertices)/sizeof(float));
+    grid.setIndices(quadIndices, sizeof(quadIndices)/sizeof(int));
+
+    grid.addAttrib(0, 3, GL_FLOAT, GL_FALSE); // Position
+
+    grid.link();
+
+    unsigned int amount = 100000;
+    std::vector<glm::mat4> modelMatrices;
+    srand(static_cast<unsigned int>(glfwGetTime())); // initialize random seed
+    float radius = 150.0;
+    float offset = 25.0f;
+    for (unsigned int i = 0; i < amount; i++)
+    {
+        glm::mat4 model = glm::mat4(1.0f);
+        // 1. translation: displace along circle with 'radius' in range [-offset, offset]
+        float angle = (float)i / (float)amount * 360.0f;
+        float displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float x = sin(angle) * radius + displacement;
+        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float y = displacement * 0.4f; // keep height of asteroid field smaller compared to width of x and z
+        displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+        float z = cos(angle) * radius + displacement;
+        model = glm::translate(model, glm::vec3(x, y, z));
+
+        // 2. scale: Scale between 0.05 and 0.25f
+        float scale = static_cast<float>((rand() % 20) / 100.0 + 0.05);
+        model = glm::scale(model, glm::vec3(scale));
+
+        // 3. rotation: add random rotation around a (semi)randomly picked rotation axis vector
+        float rotAngle = static_cast<float>((rand() % 360));
+        model = glm::rotate(model, rotAngle, glm::vec3(0.4f, 0.6f, 0.8f));
+
+        // 4. now add to list of matrices
+        modelMatrices.push_back(model);
+    }
+
+
     std::vector<std::string> faces{
         "assets/textures/skybox/right.jpg",
         "assets/textures/skybox/left.jpg",
@@ -191,11 +244,18 @@ int main()
         MainEditorWindows::RenderObjectExplorer(scene.Objects());
         MainEditorWindows::TextureViewerRenderer();
         MainEditorWindows::PropertiesRenderer();
-
+        
         scene.render();
         
         skybox.Draw(camera);
-        
+
+        gridShader.use();
+        gridShader.setMat4("view", camera.view);
+        gridShader.setMat4("projection", camera.projection);
+        gridShader.setVec3("cameraPos", camera.Position);
+        gridShader.setFloat("gridSize", 1.0f);
+
+        grid.draw();
 
         buffer.UnbindFrameBuffer();
         glDisable(GL_DEPTH_TEST);
@@ -206,7 +266,7 @@ int main()
         glBindTexture(GL_TEXTURE_2D, buffer.Texture());
         br.draw();
 
-        Render.SetClearColor(0.2f, 0.2f, 0.2f);
+        Render.SetClearColor(0.1f,0.1f,0.1f);
 
         glClear(GL_COLOR_BUFFER_BIT);
 

@@ -1,37 +1,46 @@
 #pragma once
 
-#include <glm/glm.hpp>
-#include "texture.hpp"
-#include "bufferRenderer.hpp"
 #include <vector>
+#include <string>
 #include <stddef.h>
 
+#include <glm/glm.hpp>
+
+#include "shader.hpp"
+#include "texture.hpp"
+#include "bufferRenderer.hpp"  // make sure this is included
+
+#ifndef MAX_BONE_INFLUENCE
 #define MAX_BONE_INFLUENCE 4
+#endif
 
-struct Vertex {
-    glm::vec3 Position;
-    glm::vec3 Normal;
-    glm::vec2 TexCoords;
-    glm::vec3 Tangent;
-    glm::vec3 Bitangent;
-    int m_BoneIDs[MAX_BONE_INFLUENCE];
-    float m_Weights[MAX_BONE_INFLUENCE];
-};
+// struct Vertex {
+//     glm::vec3 Position;
+//     glm::vec3 Normal;
+//     glm::vec2 TexCoords;
+//     glm::vec3 Tangent;
+//     glm::vec3 Bitangent;
+//     int m_BoneIDs[MAX_BONE_INFLUENCE];
+//     float m_Weights[MAX_BONE_INFLUENCE];
+// };
 
-// New struct for Mesh textures
+// Optional: struct for storing textures
 struct MeshTexture {
     Texture* texture;
-    std::string type; // e.g. "texture_diffuse", "texture_specular"
+    std::string type; // "texture_diffuse", "texture_specular", etc.
 };
 
 class Mesh {
 public:
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
-    std::vector<MeshTexture> textures; // store type here
+    std::vector<MeshTexture> textures;
 
-    Mesh(std::vector<Vertex> vertices, std::vector<unsigned int> indices, std::vector<MeshTexture> textures)
-        : vertices(vertices), indices(indices), textures(textures) {
+    Mesh(std::vector<Vertex> vertices,
+         std::vector<unsigned int> indices,
+         std::vector<MeshTexture> textures)
+        : vertices(vertices), indices(indices), textures(textures)
+    {
         setupMesh();
     }
 
@@ -40,15 +49,12 @@ public:
         unsigned int specularNr = 1;
 
         for (unsigned int i = 0; i < textures.size(); i++) {
-            MeshTexture& mt = textures[i];
+            MeshTexture &mt = textures[i];
 
             glActiveTexture(GL_TEXTURE0 + i);
             std::string number;
-            if (mt.type == "texture_diffuse") {
-                number = std::to_string(diffuseNr++);
-            } else if (mt.type == "texture_specular") {
-                number = std::to_string(specularNr++);
-            }
+            if (mt.type == "texture_diffuse") number = std::to_string(diffuseNr++);
+            else if (mt.type == "texture_specular") number = std::to_string(specularNr++);
 
             shader.setInt(("material." + mt.type + number).c_str(), i);
             mt.texture->bind(i);
@@ -57,6 +63,10 @@ public:
         glActiveTexture(GL_TEXTURE0);
         buf.draw();
     }
+
+    unsigned int* GetVAO() { return buf.GetVAO(); }
+    unsigned int* GetVBO() { return buf.GetVBO(); }
+    unsigned int* GetEBO() { return buf.GetEBO() ? buf.GetEBO() : nullptr; }
 
 private:
     BufferRenderer buf;
