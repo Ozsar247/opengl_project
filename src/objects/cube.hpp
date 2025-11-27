@@ -38,6 +38,7 @@ public:
 
         obj_vertices.push_back(cubeVertices);
     };
+    
     void drawInspector() override {
         Object::drawInspector(); // draw base properties
         ImGui::Separator();
@@ -123,6 +124,16 @@ public:
         model = glm::scale(model, scale); 
         useShader->setMat4("model", model);
         cube.draw();
+    }
+    void SetTexture(const std::string& type, const std::string& path) override {
+        if (type == "diffuse") {
+            if (!diffuse) diffuse = new Texture();
+            diffuse->load(path.c_str());
+        } else if (type == "specular") {
+            if (!specular) specular = new Texture();
+            specular->load(path.c_str());
+        }
+        // etc.
     }
 private:
     BufferRenderer cube;

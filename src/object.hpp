@@ -46,6 +46,7 @@ public:
     virtual ~Object() = default;
     virtual void update(float dt) = 0;
     virtual void render(glm::mat4 view, glm::mat4 projection, Shader* defaultShader) = 0;
+    virtual void SetTexture(const std::string& type, const std::string& path) {}
 protected:
     std::vector<unsigned int*> VAO;
     std::vector<unsigned int*> VBO;
