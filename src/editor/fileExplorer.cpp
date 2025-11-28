@@ -1,5 +1,6 @@
 #include "fileExplorer.hpp"
 
+#include "scriptEditor.hpp"
 #include "projectLoader.hpp"
 
 GLuint FileExplorer::LoadTextureFromFile(const char* filename, int* outWidth, int* outHeight)
@@ -88,6 +89,7 @@ void FileExplorer::DrawFileExplorer(ProjectLoader& project) {
 
                     std::error_code ec;
                     std::filesystem::rename(file, dest, ec);
+                    ScriptEditors::OnFileMoved(file, dest);
                     if (ec) {
                         std::cout << "Move error: " << ec.message() << "\n";
                     }
@@ -171,6 +173,7 @@ void FileExplorer::DrawFileExplorer(ProjectLoader& project) {
 
                             std::error_code ec;
                             std::filesystem::rename(file, dest, ec);
+                            ScriptEditors::OnFileMoved(file, dest);
                             if (ec) {
                                 std::cout << "Move error: " << ec.message() << "\n";
                             }
@@ -287,6 +290,9 @@ void FileExplorer::DrawFileExplorer(ProjectLoader& project) {
                     return;
                 } else {
                     std::cout << "Open file: " << node.relativePath << "\n";
+                    if (ext == "vs" || ext == "fs" || ext == "gs" || ext == "glsl") {
+                        ScriptEditors::OpenScript(node.absolutePath, ScriptType::GLSL);
+                    }
                 }
             }
 

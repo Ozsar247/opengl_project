@@ -34,6 +34,8 @@
 #include "./editor/mainEditorWindows.hpp"
 #include "./editor/projectLoader.hpp"
 
+#include "./editor/scriptEditor.hpp"
+
 #include <iostream>
 
 // Camera Defaults
@@ -150,6 +152,7 @@ int main()
     
     // render loop
     // -----------
+
     while (Render.RenderLoop()) {
 
         int sx;
@@ -181,6 +184,8 @@ int main()
         ImGui::End();
 
         project.RenderFileExplorer();
+
+        ScriptEditors::RenderAll();
 
         MainEditorWindows::RenderObjectExplorer(scene.Objects());
         MainEditorWindows::TextureViewerRenderer();
