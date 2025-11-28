@@ -19,6 +19,16 @@ using namespace rapidxml;
 #include "scene.hpp"
 #include "shader.hpp"
 #include "renderer.hpp"
+#include "object.hpp"  // defines Object, Texture
+#include "texture.hpp"
+#include "./objects/model.hpp"
+#include "./objects/cube.hpp"
+
+#include "fileNode.hpp"
+
+#include "./fileExplorer.hpp"
+
+#include <stb/stb_image.h>
 
 using ArgType = std::variant<int, float, std::string>;
 
@@ -29,12 +39,6 @@ enum FileType {
     FOLDER
 };
 
-struct FileNode {
-    std::string name;                 // Filename or folder name
-    std::string relativePath;         // Path from project root
-    bool isDirectory;                 // is folder?
-    std::vector<FileNode> children;   // Sub-files for directories
-};
 
 class ProjectLoader {
 public:
@@ -74,6 +78,7 @@ public:
         node.name = path.filename().string();
         node.relativePath = path.string();
         node.isDirectory = std::filesystem::is_directory(root_folder / path);
+        node.absolutePath = (std::filesystem::absolute(root_folder / path)).string();
 
         if (node.isDirectory) {
             for (auto& entry : std::filesystem::directory_iterator(root_folder / path)) {
@@ -92,6 +97,7 @@ public:
             node.name = entry.path().filename().string();
             node.relativePath = entry.path().string();
             node.isDirectory = entry.is_directory();
+            node.absolutePath = (std::filesystem::absolute(entry.path())).string();
             nodes.push_back(node);
         }
 
@@ -194,69 +200,18 @@ public:
         }
     }
 
-    void DrawFileExplorer() {
-        ImGui::Begin("Project Explorer");
-
-        if (!initialized) {
-            entries = LoadFolder(root_folder);
-            currentDir = root_folder;
-            initialized = true;
-        }
-
-        // Up button
-        if (currentDir.has_parent_path()) {
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 2)); // tweak vertical padding
-            if (ImGui::Button((std::string(ICON_FA_CHEVRON_LEFT) + " Back").c_str())) {
-                currentDir = currentDir.parent_path();
-                entries = LoadFolder(currentDir);
-            }
-            ImGui::PopStyleVar();
-        }
-
-
-        ImGui::Spacing();
-
-        const int columns = 5;
-        if (ImGui::BeginTable("filegrid", columns)) {
-            for (size_t i = 0; i < entries.size(); i++) {
-                auto& node = entries[i];
-
-                ImGui::TableNextColumn();
-                ImGui::PushID((int)i);
-
-                // Simple icon
-                const char* icon = node.isDirectory ? ICON_FA_FOLDER : ICON_FA_FILE;
-                ImGui::Button(icon, ImVec2(60, 60));
-
-                // Handle double-click
-                if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
-                    if (node.isDirectory) {
-                        currentDir = node.relativePath;
-                        entries = LoadFolder(currentDir);
-                        ImGui::PopID();
-                        ImGui::EndTable();
-                        ImGui::End();
-                        return;
-                    } else {
-                        std::cout << "Open file: " << node.relativePath << "\n";
-                    }
-                }
-
-                // Name below icon
-                ImGui::TextWrapped("%s", node.name.c_str());
-
-                ImGui::PopID();
-            }
-            ImGui::EndTable();
-        }
-
-        ImGui::End();
+    void RenderFileExplorer() {
+        FileExplorer explorer;
+        explorer.DrawFileExplorer(*this);
     }
-
     
 
     std::filesystem::path GetAbsoluteProjectPath() {
         return std::filesystem::absolute(root_folder);
+    }
+
+    std::filesystem::path GetRootFolder() {
+        return root_folder;
     }
 
 
@@ -267,9 +222,7 @@ private:
     std::filesystem::path projectFilePath;
     std::filesystem::path root_folder;
 
-    inline static std::filesystem::path currentDir; // starting folder
-    inline static std::vector<FileNode> entries;
-    inline static bool initialized = false;
+    
 
     std::unique_ptr<Object> typeFactory(Scene& scene, const std::map<std::string, ArgType>& args) {
         static std::unordered_map<std::string, std::function<std::unique_ptr<Object>()>> factory;

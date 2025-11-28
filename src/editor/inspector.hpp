@@ -27,7 +27,7 @@ public:
         }
 
         if (tex && tex->texture)
-            ImGui::Image((ImTextureID)(intptr_t)tex->texture, ImVec2(64, 64));
+            ImGui::Image((ImTextureID)(intptr_t)tex->texture, ImVec2(64, 64), ImVec2(0, 1), ImVec2(1, 0));
 
         ImGui::PopID();
     }

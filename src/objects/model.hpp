@@ -10,6 +10,8 @@
 #include <imgui/imgui.h>
 #include <string>
 
+#include "../editor/inspector.hpp"
+
 class Model : public Object {
 public:
     Model(const std::string& modelPath) {

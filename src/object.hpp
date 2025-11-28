@@ -3,6 +3,8 @@
 #include "shader.hpp"
 #include "imgui/imgui.h"
 
+#include "IconsFontAwesome6.h"
+
 #include <glm/glm.hpp>
 
 #ifndef MAX_BONE_INFLUENCE
@@ -33,6 +35,8 @@ public:
 
     std::vector<std::vector<Vertex>> obj_vertices;
     std::vector<std::vector<unsigned int>> obj_indices;
+
+    std::string explorer_icon = ICON_FA_CIRCLE;
 
     virtual void drawInspector() {
 

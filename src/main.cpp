@@ -180,7 +180,7 @@ int main()
         ImGui::Checkbox("Wireframe", &scene.wireframe);
         ImGui::End();
 
-        project.DrawFileExplorer();
+        project.RenderFileExplorer();
 
         MainEditorWindows::RenderObjectExplorer(scene.Objects());
         MainEditorWindows::TextureViewerRenderer();

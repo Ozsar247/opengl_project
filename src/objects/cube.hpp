@@ -12,6 +12,8 @@
 
 #include "../editor/inspector.hpp"
 
+#include "IconsFontAwesome6.h"
+
 
 class Cube : public Object {
 public:
@@ -19,6 +21,8 @@ public:
     int diffuseID = 0;
     Texture* specular = nullptr;
     int specularID = 0;
+
+
     Cube() {
         cube.setVertices(cubeVertices);
         cube.setStride(sizeof(Vertex));
@@ -37,6 +41,8 @@ public:
         VBO.push_back(cube.GetVBO());
 
         obj_vertices.push_back(cubeVertices);
+
+        explorer_icon = ICON_FA_CUBE;
     };
     
     void drawInspector() override {

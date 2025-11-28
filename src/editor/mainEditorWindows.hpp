@@ -32,7 +32,7 @@ public:
             if (selectedObject == obj)
                 flags |= ImGuiTreeNodeFlags_Selected;
 
-            bool open = ImGui::TreeNodeEx(name.c_str(), flags);
+            bool open = ImGui::TreeNodeEx((obj->explorer_icon + " " + name).c_str(), flags);
 
             // Handle click → set selected
             if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
